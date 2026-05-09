@@ -1,0 +1,15 @@
+/**
+ * NestJS middleware that creates an OpenTelemetry span per HTTP request
+ * and stores it in AsyncLocalStorage so mnemonica hooks can nest under it.
+ */
+import type { NestMiddleware } from '@nestjs/common';
+import type { Request, Response, NextFunction } from 'express';
+import type { Tracer } from '@opentelemetry/api';
+import { MnemonicaOtelProvider } from '../providers/mnemonica-otel.provider.js';
+export declare class MnemonicaTraceMiddleware implements NestMiddleware {
+    private readonly tracer;
+    private readonly otel;
+    constructor(tracer: Tracer, otel: MnemonicaOtelProvider);
+    use(req: Request, res: Response, next: NextFunction): void;
+}
+//# sourceMappingURL=mnemonica-trace.middleware.d.ts.map
