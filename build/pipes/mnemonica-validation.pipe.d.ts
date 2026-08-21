@@ -7,7 +7,7 @@
  *   payment: InstanceType<typeof PaymentEntity>
  */
 import type { PipeTransform, ArgumentMetadata } from '@nestjs/common';
-type MnemonicaCtor = new (...args: unknown[]) => object;
+type MnemonicaCtor = new (...args: any[]) => object;
 export declare class MnemonicaValidationPipe implements PipeTransform {
     private readonly TypeCtor;
     private readonly plainDtoClass?;

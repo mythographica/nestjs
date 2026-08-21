@@ -5,6 +5,15 @@ import { Inject } from '@nestjs/common';
 
 export const MNEMONICA_COLLECTION = Symbol.for('mnemonica.collection.default');
 
+/**
+ * ThunderstruckOptions carrier — the thunderstruck interceptor receives its
+ * config through DI, so a constructor parameter never breaks class-based
+ * wiring (@UseInterceptors(mti), APP_INTERCEPTOR useClass) in contexts
+ * where the token was never registered: @Optional() yields null there and
+ * the defaults apply.
+ */
+export const MNEMONICA_THUNDERSTRUCK_OPTIONS = Symbol.for('mnemonica.thunderstruck.options');
+
 const featureTokens = new Map<string, symbol>();
 
 export function getFeatureToken (name: string): symbol {

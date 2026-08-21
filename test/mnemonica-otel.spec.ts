@@ -72,15 +72,13 @@ describe('MnemonicaOtelProvider', () => {
 	it('records exception on creationError', async () => {
 		const tracer = provider.getTracer('test');
 		const otel = new MnemonicaOtelProvider(tracer);
-		const collection: TypesCollection = createTypesCollection();
+		const collection: TypesCollection = createTypesCollection({ blockErrors: true });
 
 		otel.attachHooks(collection);
 
-		collection.registerHook('preCreation', () => {
+		const MyType = collection.define('MyType', function () {
 			throw new Error('intentional failure');
 		});
-
-		const MyType = collection.define('MyType', function () {});
 		try {
 			new MyType();
 		} catch {
@@ -106,5 +104,48 @@ describe('MnemonicaOtelProvider', () => {
 
 		const MyType = collection.define('MyType', function () {});
 		expect(() => new MyType()).not.toThrow();
+	});
+
+	it('keeps sibling spans separate when async constructions interleave', async () => {
+		const tracer = provider.getTracer('test');
+		const otel = new MnemonicaOtelProvider(tracer);
+		const collection: TypesCollection = createTypesCollection();
+
+		otel.attachHooks(collection);
+
+		const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+		const Parent = collection.define('Parent', function () {});
+		const parent = new Parent();
+		const ChildA = Parent.define('ChildA', async function (_ms: number) {
+			await sleep(_ms);
+			return this;
+		});
+		const ChildB = Parent.define('ChildB', async function (_ms: number) {
+			await sleep(_ms);
+			return this;
+		});
+
+		// A starts first but finishes last: preA, preB, postB, postA.
+		// Pending spans keyed on the shared parent would collide here —
+		// spanA would leak and a zero-length fallback exported instead.
+		const pendingA = new parent.ChildA(50);
+		const pendingB = new parent.ChildB(5);
+		await Promise.all([pendingA, pendingB]);
+
+		await provider.forceFlush();
+
+		const spans = exporter.getFinishedSpans();
+		const spanA = spans.find((s) => s.name === 'mnemonica.ChildA');
+		const spanB = spans.find((s) => s.name === 'mnemonica.ChildB');
+		expect(spanA).toBeDefined();
+		expect(spanB).toBeDefined();
+
+		// A's span must cover the whole construction (~50ms), not start at
+		// postCreation time as a fallback would.
+		const durationMs = (s: NonNullable<typeof spanA>) =>
+			(s.endTime[0] - s.startTime[0]) * 1e3 + (s.endTime[1] - s.startTime[1]) / 1e6;
+		expect(durationMs(spanA!)).toBeGreaterThan(40);
+		expect(durationMs(spanB!)).toBeGreaterThan(0);
 	});
 });

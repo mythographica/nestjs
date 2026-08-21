@@ -20,9 +20,23 @@ import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import type { Tracer } from '@opentelemetry/api';
 import { defaultTypes, createTypesCollection } from 'mnemonica/module';
-import type { TypesCollection, constructorOptions } from 'mnemonica/module';
+import type { TypesCollection } from 'mnemonica/module';
+import { setTraceLimit } from '@mnemonica/dive';
+import { attachHooks } from './hooks/attach-hooks.js';
+
+type ConstructorOptions = {
+	strictChain?: boolean;
+	blockErrors?: boolean;
+	submitStack?: boolean;
+	awaitReturn?: boolean;
+	asClass?: boolean;
+};
 import { MnemonicaSerializerInterceptor } from './interceptors/mnemonica-serializer.interceptor.js';
-import { MNEMONICA_COLLECTION, getFeatureToken } from './tokens.js';
+import {
+	MnemonicaThunderstruckInterceptor,
+	type ThunderstruckOptions,
+} from './interceptors/mnemonica-thunderstruck.interceptor.js';
+import { MNEMONICA_COLLECTION, MNEMONICA_THUNDERSTRUCK_OPTIONS, getFeatureToken } from './tokens.js';
 import { MnemonicaOtelProvider } from './providers/mnemonica-otel.provider.js';
 
 export interface MnemonicaModuleOptions {
@@ -34,12 +48,39 @@ export interface MnemonicaModuleOptions {
 	autoExtract?: boolean;
 	/** OpenTelemetry tracer — if provided, replaces console telemetry with OTel spans */
 	tracer?: Tracer;
+	/**
+	 * Dive ring-buffer size (edges kept in the trace). Applied only when
+	 * explicitly provided, so a direct setTraceLimit() call from userland is
+	 * never overridden. Dive's own default equals DEFAULT_TRACE_LIMIT.
+	 */
+	traceLimit?: number;
+	/**
+	 * Thunderstruck: attach dive hooks to the collection AND register the
+	 * MnemonicaThunderstruckInterceptor globally — raw request payloads are
+	 * fed into dive's pre-root collector ahead of every construction.
+	 * Pass a ThunderstruckOptions object for the extras, e.g.
+	 * { storeRequest: true }.
+	 */
+	thunderstruck?: boolean | ThunderstruckOptions;
 }
+
+/**
+ * The dive trace's default ring-buffer size — re-exported so the tuning
+ * knob is discoverable where the module is configured. Matches dive's own
+ * internal default; the buffer size IS dive's memory bound.
+ */
+export const DEFAULT_TRACE_LIMIT = 1024;
 
 @Module({})
 export class MnemonicaModule {
 	static forRoot (options: MnemonicaModuleOptions = {}): DynamicModule {
 		const collection = options.collection ?? defaultTypes;
+
+		// Dive-global knob: applied only when explicitly provided — a direct
+		// setTraceLimit() from userland must never be silently overridden.
+		if (options.traceLimit !== undefined) {
+			setTraceLimit(options.traceLimit);
+		}
 
 		const providers: Provider[] = [
 			{ provide: MNEMONICA_COLLECTION, useValue: collection },
@@ -49,6 +90,25 @@ export class MnemonicaModule {
 			providers.push({
 				provide : APP_INTERCEPTOR,
 				useClass : MnemonicaSerializerInterceptor,
+			});
+		}
+
+		if (options.thunderstruck) {
+			// Dive hooks first (creation edges + method wrapping), then the
+			// boundary interceptor that stamps pre-root payloads. The config
+			// rides a DI token: a constructor parameter of an interface type
+			// would surface in design:paramtypes as Object and break Nest's
+			// class-based instantiation where the token is not registered.
+			attachHooks(collection);
+			providers.push({
+				provide : MNEMONICA_THUNDERSTRUCK_OPTIONS,
+				useValue : typeof options.thunderstruck === 'object'
+					? options.thunderstruck
+					: {},
+			});
+			providers.push({
+				provide : APP_INTERCEPTOR,
+				useClass : MnemonicaThunderstruckInterceptor,
 			});
 		}
 
@@ -71,7 +131,7 @@ export class MnemonicaModule {
 		};
 	}
 
-	static forFeature (name: string, config?: constructorOptions): DynamicModule {
+	static forFeature (name: string, config?: ConstructorOptions): DynamicModule {
 		const collection = createTypesCollection(config);
 		const token = getFeatureToken(name);
 

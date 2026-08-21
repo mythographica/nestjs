@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { MnemonicaModule, InjectMnemonicaCollection, MNEMONICA_COLLECTION } from '../src/index.js';
+import { MnemonicaModule, InjectMnemonicaCollection, MNEMONICA_COLLECTION, DEFAULT_TRACE_LIMIT } from '../src/index.js';
 import { defaultTypes, createTypesCollection } from 'mnemonica/module';
 import type { TypesCollection } from 'mnemonica/module';
+import { wrap, getFlow, setTraceLimit, clear } from '@mnemonica/dive';
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
@@ -69,5 +70,31 @@ describe('MnemonicaModule', () => {
 		expect(service.collection).toBeDefined();
 		// Collection was created with the provided config
 		expect(service.collection === defaultTypes).toBe(false);
+	});
+
+	it('forRoot({ traceLimit }) bounds the dive trace; the default is exported', async () => {
+		clear();
+		expect(DEFAULT_TRACE_LIMIT).toBe(1024);
+
+		await Test.createTestingModule({
+			imports : [MnemonicaModule.forRoot({ traceLimit: 3 })],
+		}).compile();
+
+		const ctx = { id: 'trace-limit-ctx' };
+		const step = wrap(() => 1, ctx);
+		for (let i = 0; i < 5; i++) {
+			step();
+		}
+
+		// 5 invocations, ring of 3 — the branch is truncated at the bound
+		expect(getFlow(ctx).length).toBe(3);
+
+		// restore the default for the rest of the suite
+		setTraceLimit(DEFAULT_TRACE_LIMIT);
+		clear();
+	});
+
+	it('forRoot({ traceLimit: -1 }) fails loudly at bootstrap', () => {
+		expect(() => MnemonicaModule.forRoot({ traceLimit: -1 })).toThrow();
 	});
 });

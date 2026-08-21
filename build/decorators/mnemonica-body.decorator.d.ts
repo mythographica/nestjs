@@ -1,4 +1,4 @@
-type MnemonicaCtor = new (...args: unknown[]) => object;
+type MnemonicaCtor = new (...args: any[]) => object;
 interface MnemonicaBodyOptions {
     dtoClass?: new () => object;
 }

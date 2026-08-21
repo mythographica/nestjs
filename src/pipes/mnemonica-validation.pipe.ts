@@ -10,8 +10,11 @@ import type { PipeTransform, ArgumentMetadata } from '@nestjs/common';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate, type ValidationError } from 'class-validator';
-// Mnemonica type constructor shape
- type MnemonicaCtor = new (...args: unknown[]) => object;
+import { feedValidatedPreRoot } from '../thunderstruck/pre-root.js';
+// Mnemonica type constructor shape. `any[]` on purpose: tactica-typed
+// constructors carry their specific data signature, and the pipe's job is
+// precisely to construct from unknown wire data.
+ type MnemonicaCtor = new (...args: any[]) => object;
 
 @Injectable()
 export class MnemonicaValidationPipe implements PipeTransform {
@@ -28,6 +31,10 @@ export class MnemonicaValidationPipe implements PipeTransform {
 			if (errors.length > 0) {
 				throw new BadRequestException(this.formatErrors(errors));
 			}
+			// Thunderstruck: feed the validated DTO, correlated to the raw
+			// boundary payload by object identity (same reference the
+			// interceptor stamped). No-op when the interceptor is not active.
+			feedValidatedPreRoot(value, dto);
 		}
 
 		// Step 2: Construct mnemonica instance

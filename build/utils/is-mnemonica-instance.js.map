@@ -1,1 +1,0 @@
-{"version":3,"file":"is-mnemonica-instance.js","sourceRoot":"","sources":["../../src/utils/is-mnemonica-instance.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,OAAO,EAAE,QAAQ,EAAE,MAAM,kBAAkB,CAAC;AAE5C,MAAM,UAAU,mBAAmB,CAAE,KAAc;IAClD,OAAO,KAAK,IAAI,IAAI,IAAI,OAAO,KAAK,KAAK,QAAQ,IAAI,QAAQ,CAAC,KAAK,CAAC,KAAK,SAAS,CAAC;AACpF,CAAC"}

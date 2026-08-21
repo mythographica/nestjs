@@ -9,8 +9,8 @@
  *   @Body(MnemonicaValidationPipe.forType(PaymentEntity, CreatePaymentDto))
  */
 import { Body } from '@nestjs/common';
-// Mnemonica type constructor shape
- type MnemonicaCtor = new (...args: unknown[]) => object;
+// Mnemonica type constructor shape (see the pipe for why `any[]`)
+ type MnemonicaCtor = new (...args: any[]) => object;
 import { MnemonicaValidationPipe } from '../pipes/mnemonica-validation.pipe.js';
 
 interface MnemonicaBodyOptions {

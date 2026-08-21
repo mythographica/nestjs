@@ -15,6 +15,9 @@ const asyncStorage = new AsyncLocalStorage<Span>();
 
 export class MnemonicaOtelProvider {
 	private tracer: Tracer;
+	// spans of constructions in flight, keyed on the per-call args array
+	// (the only value core guarantees identical between pre and post hooks)
+	private pendingSpans = new WeakMap<object, Span>();
 
 	constructor (tracer?: Tracer) {
 		this.tracer = tracer ?? trace.getTracer('@mnemonica/nestjs');
@@ -30,56 +33,85 @@ export class MnemonicaOtelProvider {
 
 	attachHooks (collection: TypesCollection): void {
 		collection.registerHook('preCreation', (hookData: hooksOpts) => {
-			const parent = this.findParentSpan(hookData);
-			const ctx = parent
-				? otelContext.active()
-				: otelContext.active();
-			const span = parent
+			const parentSpan = this.findParentSpan(hookData);
+			const ctx = parentSpan
+				? trace.setSpan(otelContext.active(), parentSpan)
+				: undefined;
+			const span = parentSpan
 				? this.tracer.startSpan(
 					`mnemonica.${hookData.TypeName}`,
 					{},
-					otelContext.setSpan(ctx, parent)
+					ctx
 				)
 				: this.tracer.startSpan(`mnemonica.${hookData.TypeName}`);
 
 			span.setAttribute('mnemonica.type_name', hookData.TypeName);
 			span.setAttribute('mnemonica.hook', 'preCreation');
 
-			const instance = hookData.inheritedInstance;
-			if (instance != null && typeof instance === 'object') {
-				Object.defineProperty(instance, SymbolParentSpan, {
-					value       : span,
-					configurable: true,
-					enumerable  : false,
-					writable    : true,
-				});
-			}
+			// Store the pending span keyed on the construction's args array:
+			// core passes the identical args reference to preCreation and to
+			// postCreation/creationError, and it is unique per construction call.
+			// Keying on the parent instance would collide when async constructions
+			// of siblings interleave (preA, preB, postB, postA — the second
+			// preCreation would overwrite the first).
+			this.pendingSpans.set(hookData.args, span);
 		});
 
 		collection.registerHook('postCreation', (hookData: hooksOpts) => {
-			const instance = hookData.inheritedInstance;
-			if (instance == null || typeof instance !== 'object') {
+			const newInstance = hookData.inheritedInstance;
+			if (newInstance == null || typeof newInstance !== 'object') {
 				return;
 			}
-			const span = (instance as Record<symbol, unknown>)[SymbolParentSpan] as Span | undefined;
-			if (span) {
-				span.setAttribute('mnemonica.hook', 'postCreation');
-				span.end();
+
+			// Retrieve and remove the pending span for this construction
+			let span = this.pendingSpans.get(hookData.args);
+			this.pendingSpans.delete(hookData.args);
+
+			if (!span) {
+				// Fallback: create span here if preCreation didn't (shouldn't happen)
+				span = this.tracer.startSpan(`mnemonica.${hookData.TypeName}`);
+				span.setAttribute('mnemonica.type_name', hookData.TypeName);
 			}
+
+			span.setAttribute('mnemonica.hook', 'postCreation');
+			span.end();
+
+			// Store on new instance so its children can find the parent span
+			Object.defineProperty(newInstance, SymbolParentSpan, {
+				value       : span,
+				configurable: true,
+				enumerable  : false,
+				writable    : true,
+			});
 		});
 
 		collection.registerHook('creationError', (hookData: hooksOpts) => {
-			const instance = hookData.inheritedInstance;
-			if (instance == null || typeof instance !== 'object') {
+			const newInstance = hookData.inheritedInstance;
+			if (newInstance == null || typeof newInstance !== 'object') {
 				return;
 			}
-			const span = (instance as Record<symbol, unknown>)[SymbolParentSpan] as Span | undefined;
-			if (span) {
-				span.setAttribute('mnemonica.hook', 'creationError');
-				span.setAttribute('error.type', 'Error');
-				span.recordException(instance as Error);
-				span.end();
+
+			// Retrieve and remove the pending span for this construction
+			let span = this.pendingSpans.get(hookData.args);
+			this.pendingSpans.delete(hookData.args);
+
+			if (!span) {
+				span = this.tracer.startSpan(`mnemonica.${hookData.TypeName}`);
+				span.setAttribute('mnemonica.type_name', hookData.TypeName);
 			}
+
+			span.setAttribute('mnemonica.hook', 'creationError');
+			span.setAttribute('error.type', 'Error');
+			span.recordException(newInstance as Error);
+			span.end();
+
+			// Store on error instance for chain tracing
+			Object.defineProperty(newInstance, SymbolParentSpan, {
+				value       : span,
+				configurable: true,
+				enumerable  : false,
+				writable    : true,
+			});
 		});
 	}
 
