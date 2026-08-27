@@ -29,6 +29,7 @@ failure.
 | `src/thunderstruck/pre-root.ts` | the pre-root store: `feedPreRoot` / `getPreRoot`, WeakMap-keyed on request payload objects |
 | `src/hooks/attach-hooks.ts` | wires a TypesCollection to dive's lifecycle tracing |
 | `src/providers/mnemonica-otel.provider.ts` | OTel tracer provider for nested construction spans |
+| `src/providers/dive-otel.provider.ts` | OTel provider over dive's edge hooks — spans every wrapped call, parented on dive's trace |
 | `src/decorators/mnemonica-body.decorator.ts` | `MnemonicaBody` — `@Body()` + validation pipe in one |
 | `src/tokens.ts` | DI tokens, `InjectMnemonicaCollection` |
 | `src/utils/is-mnemonica-instance.ts` | realm-safe type guard via `getProps()` |

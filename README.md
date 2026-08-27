@@ -134,6 +134,7 @@ Registers the global/default `TypesCollection`.
 | `autoExtract`   | `boolean`                         | `false`        | Globally register `MnemonicaSerializerInterceptor` |
 | `telemetry`     | `boolean`                         | `false`        | Wire console telemetry hooks |
 | `tracer`        | `Tracer`                          | `undefined`    | OTel tracer — spans per construction, nested along the prototype chain |
+| `traceDiveCalls` | `boolean`                        | `false`        | Requires `tracer` — span EVERY dive-wrapped call, parented on dive's trace; async spans close at settle |
 | `traceLimit`    | `number`                          | `1024`         | Dive ring-buffer size; applied only when provided, never overrides a direct `setTraceLimit()` |
 | `thunderstruck` | `boolean \| ThunderstruckOptions` | `false`        | Dive hooks + global `MnemonicaThunderstruckInterceptor`; `{ storeRequest: true }` also links the raw request into the record |
 
@@ -352,7 +353,6 @@ if (isMnemonicaInstance(value)) {
 ```
 
 ### `formatFlow(target?)` / `errorContext(error)`
-
 Read-side helpers over dive's trace — the two idioms error boundaries
 otherwise re-derive by hand:
 
@@ -366,6 +366,27 @@ const flow = formatFlow(error);
 // "who failed": pinned instance first, ambient context as fallback:
 const instance = errorContext(error);   // getErrorInstance(err) ?? current()
 ```
+
+### `DiveOtelProvider` — spans for every wrapped call
+
+`MnemonicaOtelProvider` spans constructions; `DiveOtelProvider` subscribes to
+dive's edge lifecycle hooks and spans **every dive-wrapped call** (`call` /
+`construct` / `method` / `recontext`), named `dive.<kind>:<name>`. Parentage
+comes from dive's own trace (edge `parentId`), not ALS; at unwrapped
+boundaries the span nests under the active OTel span, so the HTTP request span
+adopts the whole branch. Async spans end at **settle**, not at the sync close.
+
+```typescript
+// standalone:
+import { DiveOtelProvider } from '@mnemonica/nestjs';
+const diveOtel = new DiveOtelProvider(tracer);
+diveOtel.attach();   // idempotent; diveOtel.detach() unsubscribes
+
+// or via the module:
+MnemonicaModule.forRoot({ tracer, traceDiveCalls: true });
+```
+
+Note: dive's `clear()` wipes hook subscribers — re-`attach()` after it.
 
 ### `InjectMnemonicaCollection(name?)`
 

@@ -38,6 +38,7 @@ import {
 } from './interceptors/mnemonica-thunderstruck.interceptor.js';
 import { MNEMONICA_COLLECTION, MNEMONICA_THUNDERSTRUCK_OPTIONS, getFeatureToken } from './tokens.js';
 import { MnemonicaOtelProvider } from './providers/mnemonica-otel.provider.js';
+import { DiveOtelProvider } from './providers/dive-otel.provider.js';
 
 export interface MnemonicaModuleOptions {
 	/** Existing TypesCollection (default = mnemonica.defaultTypes) */
@@ -48,6 +49,13 @@ export interface MnemonicaModuleOptions {
 	autoExtract?: boolean;
 	/** OpenTelemetry tracer — if provided, replaces console telemetry with OTel spans */
 	tracer?: Tracer;
+	/**
+	 * Span EVERY dive-wrapped call (call / construct / method / recontext),
+	 * not just constructions. Requires `tracer`. Spans are parented on dive's
+	 * own trace parentage; at unwrapped boundaries they nest under the active
+	 * OTel span (e.g. the HTTP request span from mtm).
+	 */
+	traceDiveCalls?: boolean;
 	/**
 	 * Dive ring-buffer size (edges kept in the trace). Applied only when
 	 * explicitly provided, so a direct setTraceLimit() call from userland is
@@ -119,6 +127,14 @@ export class MnemonicaModule {
 				provide : MnemonicaOtelProvider,
 				useValue : otel,
 			});
+			if (options.traceDiveCalls) {
+				const diveOtel = new DiveOtelProvider(options.tracer);
+				diveOtel.attach();
+				providers.push({
+					provide : DiveOtelProvider,
+					useValue : diveOtel,
+				});
+			}
 		} else if (options.telemetry) {
 			this.registerTelemetryHooks(collection);
 		}
