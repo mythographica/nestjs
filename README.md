@@ -351,6 +351,22 @@ if (isMnemonicaInstance(value)) {
 }
 ```
 
+### `formatFlow(target?)` / `errorContext(error)`
+
+Read-side helpers over dive's trace — the two idioms error boundaries
+otherwise re-derive by hand:
+
+```typescript
+import { formatFlow, errorContext } from '@mnemonica/nestjs';
+
+// JSON-safe branch for reports / filters / logs (no live instance refs):
+const flow = formatFlow(error);
+// → [{ name, kind, status, duration }, …]  (duration: null while unsettled)
+
+// "who failed": pinned instance first, ambient context as fallback:
+const instance = errorContext(error);   // getErrorInstance(err) ?? current()
+```
+
 ### `InjectMnemonicaCollection(name?)`
 
 Inject a `TypesCollection` by feature name. Omit or use `'default'` for

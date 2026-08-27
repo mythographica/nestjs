@@ -32,6 +32,7 @@ failure.
 | `src/decorators/mnemonica-body.decorator.ts` | `MnemonicaBody` — `@Body()` + validation pipe in one |
 | `src/tokens.ts` | DI tokens, `InjectMnemonicaCollection` |
 | `src/utils/is-mnemonica-instance.ts` | realm-safe type guard via `getProps()` |
+| `src/utils/dive-flow.ts` | `formatFlow` / `errorContext` — read-side helpers over dive's trace |
 
 ## Invariants (do not break these)
 

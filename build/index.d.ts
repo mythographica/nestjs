@@ -10,6 +10,7 @@
  *   - MnemonicaBody decorator
  *   - InjectMnemonicaCollection decorator
  *   - isMnemonicaInstance() type guard
+ *   - formatFlow() / errorContext() — read-side helpers over dive's trace
  */
 export { MnemonicaModule, type MnemonicaModuleOptions, DEFAULT_TRACE_LIMIT } from './mnemonica.module.js';
 export { MnemonicaSerializerInterceptor } from './interceptors/mnemonica-serializer.interceptor.js';
@@ -21,6 +22,7 @@ export { MnemonicaTraceMiddleware as mtm } from './middleware/mnemonica-trace.mi
 export { MnemonicaBody } from './decorators/mnemonica-body.decorator.js';
 export { InjectMnemonicaCollection, MNEMONICA_COLLECTION } from './tokens.js';
 export { isMnemonicaInstance } from './utils/is-mnemonica-instance.js';
+export { formatFlow, errorContext, type FormattedFlowEdge } from './utils/dive-flow.js';
 export { attachHooks } from './hooks/attach-hooks.js';
 export { MnemonicaOtelProvider } from './providers/mnemonica-otel.provider.js';
 export { MnemonicaTraceMiddleware } from './middleware/mnemonica-trace.middleware.js';
