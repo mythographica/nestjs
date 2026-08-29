@@ -67,6 +67,13 @@ meaning src changed without committing the regenerated output. Fix:
 `npm run build && git add build/ build-cjs/ && git commit`. Deterministic
 tsc output keeps a properly committed tree clean through publish.
 
+**Testing rule:** behavior changes must break a test. Pin behavior with
+snapshot-like assertions — deep-equal the full observed shape (edge kinds,
+statuses, durations), not just the fields you touched. A dependency range
+bump (e.g. onto a new dive) is a behavior change even with zero source
+edits: old pins can keep the suite green against the previous semantics.
+If you change behavior and no test fails, the suite has a hole.
+
 **CJS build notes:** `tsconfig.cjs.json` compiles the same src/ with
 `module: CommonJS` into `build-cjs/`; `scripts/write-cjs-marker.js` drops a
 `{"type":"commonjs"}` package.json there (the root says `"type":"module"`).
