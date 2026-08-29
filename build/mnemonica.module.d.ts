@@ -36,6 +36,13 @@ export interface MnemonicaModuleOptions {
     /** OpenTelemetry tracer — if provided, replaces console telemetry with OTel spans */
     tracer?: Tracer;
     /**
+     * Span EVERY dive-wrapped call (call / construct / method / recontext),
+     * not just constructions. Requires `tracer`. Spans are parented on dive's
+     * own trace parentage; at unwrapped boundaries they nest under the active
+     * OTel span (e.g. the HTTP request span from mtm).
+     */
+    traceDiveCalls?: boolean;
+    /**
      * Dive ring-buffer size (edges kept in the trace). Applied only when
      * explicitly provided, so a direct setTraceLimit() call from userland is
      * never overridden. Dive's own default equals DEFAULT_TRACE_LIMIT.

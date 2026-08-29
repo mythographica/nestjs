@@ -1,6 +1,6 @@
 {
 	"name": "@mnemonica/nestjs",
-	"version": "0.6.0",
+	"version": "0.7.0",
 	"description": "NestJS adapter for mnemonica — data lineage, nominal typing, and hook-based observability",
 	"type": "module",
 	"main": "./build/index.js",
@@ -8,26 +8,28 @@
 	"exports": {
 		".": {
 			"types": "./build/index.d.ts",
+			"require": "./build-cjs/index.js",
 			"default": "./build/index.js"
 		}
 	},
 	"files": [
 		"build/",
+		"build-cjs/",
 		"README.md",
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsc",
+		"build": "tsc && tsc -p tsconfig.cjs.json && node scripts/write-cjs-marker.js",
 		"build:watch": "tsc --watch",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"prepublishOnly": "npm run build && npm test"
+		"prepublishOnly": "npm run build && npm test && node scripts/assert-clean-build.js"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
 	"peerDependencies": {
-		"@mnemonica/dive": "^0.5.0",
+		"@mnemonica/dive": "^0.6.0",
 		"@nestjs/common": "^10.0.0 || ^11.0.0",
 		"@nestjs/core": "^10.0.0 || ^11.0.0",
 		"@opentelemetry/api": "^1.0.0",
@@ -37,7 +39,7 @@
 		"reflect-metadata": "^0.2.0"
 	},
 	"devDependencies": {
-		"@mnemonica/dive": "^0.5.0",
+		"@mnemonica/dive": "^0.6.0",
 		"@nestjs/common": "^10.4.22",
 		"@nestjs/core": "^10.4.22",
 		"@nestjs/testing": "^10.4.22",
@@ -74,6 +76,6 @@
 	},
 	"homepage": "https://github.com/mythographica/nestjs#readme",
 	"dependencies": {
-		"@mnemonica/dive": "^0.5.0"
+		"@mnemonica/dive": "^0.6.0"
 	}
 }

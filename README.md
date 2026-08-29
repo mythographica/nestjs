@@ -36,6 +36,10 @@ npm install @mnemonica/nestjs mnemonica @mnemonica/dive \
 Peer dependencies: `@nestjs/common`, `@nestjs/core`, `reflect-metadata`
 (and `@opentelemetry/api` only if you use the tracer options).
 
+Dual build: ESM (`import`) and CommonJS (`require`) both work. The CJS
+flavor loads `@mnemonica/dive` through `require(esm)`, so `require()`
+consumers need Node ≥ 20.19 / 22.
+
 ## Step by step: a request becomes a traceable instance
 
 **Step 1 — define the type.** This is plain mnemonica, no NestJS involved:

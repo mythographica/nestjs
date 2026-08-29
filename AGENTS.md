@@ -55,12 +55,26 @@ failure.
 ## Build & test
 
 ```bash
-npm run build   # tsc → build/
-npm test        # vitest run (36 tests)
+npm run build   # tsc → build/ (ESM) + build-cjs/ (CJS, tsconfig.cjs.json)
+npm test        # vitest run (52 tests, incl. the CJS smoke)
 ```
 
 Both must be green before a change is done. `prepublishOnly` runs build +
-tests automatically.
+tests + `scripts/assert-clean-build.js`: this repo TRACKS `build/` and
+`build-cjs/` in git and publishes them, so the rule is **publish committed
+files** — the gate fails the publish if the rebuild leaves either dirty,
+meaning src changed without committing the regenerated output. Fix:
+`npm run build && git add build/ build-cjs/ && git commit`. Deterministic
+tsc output keeps a properly committed tree clean through publish.
+
+**CJS build notes:** `tsconfig.cjs.json` compiles the same src/ with
+`module: CommonJS` into `build-cjs/`; `scripts/write-cjs-marker.js` drops a
+`{"type":"commonjs"}` package.json there (the root says `"type":"module"`).
+Its `paths` shim maps `mnemonica/module` types to core's
+`build/index.d.ts` because Node10 resolution ignores the exports map — at
+runtime the `require` condition resolves `mnemonica/module` straight to
+core's CJS build, so both flavors share the one mnemonica singleton (the
+CJS smoke test asserts exactly that).
 
 **vitest config caveat:** `vitest.config.ts` aliases `mnemonica` to
 `../core/module/index.js` when that sibling checkout exists (local dev

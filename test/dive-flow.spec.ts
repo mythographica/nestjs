@@ -48,7 +48,7 @@ describe('formatFlow', () => {
 		expect(typeof settled[0].duration).toBe('number');
 	});
 
-	it('normalizes never-completed edge duration to null (create edges)', () => {
+	it('create edges settle at postCreation (dive 0.6.1)', () => {
 		clear();
 		const collection = createTypesCollection();
 		attachHooks(collection);
@@ -57,11 +57,12 @@ describe('formatFlow', () => {
 		});
 		const instance = new Root('r1');
 
-		// create edges are not completed by a call: duration stays undefined
+		// construction completed, so the create edge is honestly closed —
+		// forever-'running' was the pre-0.6.1 lie found by the live smoke
 		const flow = formatFlow(instance);
 		expect(flow[0].kind).toBe('create');
-		expect(flow[0].status).toBe('running');
-		expect(flow[0].duration).toBeNull();
+		expect(flow[0].status).toBe('ok');
+		expect(flow[0].duration).toBe(0);
 	});
 
 	it('never carries the live instance reference', () => {

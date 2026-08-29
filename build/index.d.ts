@@ -25,6 +25,7 @@ export { isMnemonicaInstance } from './utils/is-mnemonica-instance.js';
 export { formatFlow, errorContext, type FormattedFlowEdge } from './utils/dive-flow.js';
 export { attachHooks } from './hooks/attach-hooks.js';
 export { MnemonicaOtelProvider } from './providers/mnemonica-otel.provider.js';
+export { DiveOtelProvider } from './providers/dive-otel.provider.js';
 export { MnemonicaTraceMiddleware } from './middleware/mnemonica-trace.middleware.js';
 export { getPreRoot, type PreRootData, type RawPreRootPayload } from './thunderstruck/pre-root.js';
 //# sourceMappingURL=index.d.ts.map
