@@ -1,6 +1,6 @@
 {
 	"name": "@mnemonica/nestjs",
-	"version": "0.7.2",
+	"version": "0.7.3",
 	"description": "NestJS adapter for mnemonica — data lineage, nominal typing, and hook-based observability",
 	"type": "module",
 	"main": "./build/index.js",

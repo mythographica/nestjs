@@ -6,6 +6,7 @@ import type { NestMiddleware } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 import type { Tracer } from '@opentelemetry/api';
+import { context as otelContext, trace } from '@opentelemetry/api';
 import { MnemonicaOtelProvider } from '../providers/mnemonica-otel.provider.js';
 
 @Injectable()
@@ -26,6 +27,13 @@ export class MnemonicaTraceMiddleware implements NestMiddleware {
 			span.end();
 		});
 
-		this.otel.runWithSpan(span, () => next());
+		// runWithSpan covers the mnemonica-hook side (the provider's own ALS);
+		// the OTEL global context is what DiveOtelProvider reads when it looks
+		// for a parent span at wrap boundaries — without this second entry
+		// dive spans never adopt the request span and stay root traces.
+		const activeCtx = trace.setSpan(otelContext.active(), span);
+		this.otel.runWithSpan(span, () => {
+			otelContext.with(activeCtx, () => next());
+		});
 	}
 }
