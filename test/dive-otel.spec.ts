@@ -13,7 +13,7 @@ import {
 	SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-node';
 import { SpanStatusCode, context as otelContext, trace } from '@opentelemetry/api';
-import { wrap, clear } from '@mnemonica/dive';
+import { wrap, clear, recordCreation, recordCreationError } from '@mnemonica/dive';
 import { DiveOtelProvider } from '../src/providers/dive-otel.provider.js';
 
 describe('DiveOtelProvider', () => {
@@ -158,6 +158,53 @@ describe('DiveOtelProvider', () => {
 		const spans = exporter.getFinishedSpans();
 		const diveSpan = spans.find((span) => span.name === 'dive.call:handler');
 		expect(diveSpan?.parentSpanId).toBe(root.spanContext().spanId);
+	});
+
+	it('a recorded construction produces a one-shot create span', async () => {
+		const instance = { name: 'thing' };
+		recordCreation('Thing', instance);
+		await tracerProvider.forceFlush();
+
+		const spans = exporter.getFinishedSpans();
+		expect(spans.length).toBe(1);
+		expect(spans[0].name).toBe('dive.create:Thing');
+		expect(spans[0].attributes['dive.kind']).toBe('create');
+		expect(spans[0].attributes['dive.name']).toBe('Thing');
+		expect(spans[0].attributes['dive.status']).toBe('ok');
+		// the hook moment IS the completion — duration is recorded as 0
+		expect(spans[0].attributes['dive.duration_ms']).toBe(0);
+	});
+
+	it('a construction inside a wrapped call joins the call’s trace', async () => {
+		const ctx = { name: 'ctx' };
+		const wrapped = wrap(function build () {
+			const instance = { made: true };
+			recordCreation('Made', instance);
+			return instance;
+		}, ctx);
+		wrapped();
+		await tracerProvider.forceFlush();
+
+		const spans = exporter.getFinishedSpans();
+		expect(spans.length).toBe(2);
+		const callSpan = spans.find((span) => span.name === 'dive.call:build');
+		const createSpan = spans.find((span) => span.name === 'dive.create:Made');
+		expect(callSpan).toBeDefined();
+		expect(createSpan).toBeDefined();
+		expect(createSpan?.parentSpanId).toBe(callSpan?.spanContext().spanId);
+	});
+
+	it('a failed construction closes its create span with ERROR status', async () => {
+		const failure = new Error('ctor boom');
+		recordCreationError('Broken', failure);
+		await tracerProvider.forceFlush();
+
+		const spans = exporter.getFinishedSpans();
+		expect(spans.length).toBe(1);
+		expect(spans[0].name).toBe('dive.create:Broken');
+		expect(spans[0].attributes['dive.status']).toBe('error');
+		expect(spans[0].status.code).toBe(SpanStatusCode.ERROR);
+		expect(spans[0].events.some((event) => event.name === 'exception')).toBe(true);
 	});
 
 	it('attach is idempotent; detach stops the spans', async () => {

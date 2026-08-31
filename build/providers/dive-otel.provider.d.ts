@@ -6,7 +6,10 @@
  * recontext edges each become a span, parented on the span of the edge's
  * parentId — dive's own trace parentage, not ALS. At unwrapped boundaries
  * (parentId null) the span nests under the currently ACTIVE OTel span, so an
- * HTTP request span adopts the whole dive branch.
+ * HTTP request span adopts the whole dive branch. 'create' edges (mnemonica
+ * constructions recorded via recordCreation/recordCreationError) become
+ * one-shot spans on the same parentage — the construction HAS completed when
+ * the hook fires, so the span starts and ends inside the handler.
  *
  * Async truthfulness: a span does NOT end at the sync close when the wrap
  * produced a tapped promise — it ends at settle, with the chain's outcome.
@@ -29,6 +32,7 @@ export declare class DiveOtelProvider {
     private onLeave;
     private onSettle;
     private onRecontext;
+    private onCreate;
     private findParentSpan;
     private closeSpan;
 }

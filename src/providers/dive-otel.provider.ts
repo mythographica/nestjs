@@ -6,7 +6,10 @@
  * recontext edges each become a span, parented on the span of the edge's
  * parentId — dive's own trace parentage, not ALS. At unwrapped boundaries
  * (parentId null) the span nests under the currently ACTIVE OTel span, so an
- * HTTP request span adopts the whole dive branch.
+ * HTTP request span adopts the whole dive branch. 'create' edges (mnemonica
+ * constructions recorded via recordCreation/recordCreationError) become
+ * one-shot spans on the same parentage — the construction HAS completed when
+ * the hook fires, so the span starts and ends inside the handler.
  *
  * Async truthfulness: a span does NOT end at the sync close when the wrap
  * produced a tapped promise — it ends at settle, with the chain's outcome.
@@ -17,6 +20,7 @@ import type { Span, Tracer } from '@opentelemetry/api';
 import { SpanStatusCode, context as otelContext, trace } from '@opentelemetry/api';
 import {
 	registerHook,
+	type DiveCreatePayload,
 	type DiveEnterPayload,
 	type DiveLeavePayload,
 	type DiveRecontextPayload,
@@ -56,6 +60,18 @@ export class DiveOtelProvider {
 				this.onRecontext(payload);
 			}),
 		);
+		try {
+			this.detachers.push(
+				registerHook('create', (payload) => {
+					this.onCreate(payload);
+				}),
+			);
+		} catch {
+			// The 'create' event exists since dive 0.8.0; on 0.7.x registerHook
+			// throws on the unknown event. Skipping it there preserves exactly
+			// the pre-subscription behavior (constructions stay unspanned), so
+			// the widened ^0.7.0 || ^0.8.0 peer range stays honest.
+		}
 	}
 
 	detach (): void {
@@ -114,6 +130,38 @@ export class DiveOtelProvider {
 		span.setAttribute('dive.handoff', true);
 		span.setAttribute('dive.handoff.had_previous', previousContext !== undefined);
 		span.setAttribute('dive.handoff.has_context', context !== undefined);
+		span.end();
+	}
+
+	private onCreate ({ edge, error }: DiveCreatePayload): void {
+		// One-shot span: the construction already completed when recordCreation
+		// fired (the hook moment IS the completion), so the span starts and
+		// ends here — same shape as recontext. findParentSpan adopts the
+		// wrapped call's span via edge.parentId, or the active request span at
+		// a boundary, so constructions join the request trace instead of
+		// opening a root trace of their own.
+		const parentSpan = this.findParentSpan(edge);
+		const ctx = parentSpan
+			? trace.setSpan(otelContext.active(), parentSpan)
+			: undefined;
+		const name = `dive.${edge.kind}:${edge.name}`;
+		const span = ctx
+			? this.tracer.startSpan(name, {}, ctx)
+			: this.tracer.startSpan(name);
+
+		span.setAttribute('dive.edge_id', edge.id);
+		span.setAttribute('dive.kind', edge.kind);
+		span.setAttribute('dive.name', edge.name);
+		span.setAttribute('dive.status', edge.status);
+		if (edge.duration !== undefined) {
+			span.setAttribute('dive.duration_ms', edge.duration);
+		}
+		if (edge.status === 'error') {
+			span.setStatus({ code: SpanStatusCode.ERROR });
+			if (error instanceof Error) {
+				span.recordException(error);
+			}
+		}
 		span.end();
 	}
 
