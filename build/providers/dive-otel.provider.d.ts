@@ -20,6 +20,8 @@ import type { Tracer } from '@opentelemetry/api';
 export declare class DiveOtelProvider {
     private tracer;
     private spans;
+    private edgeParents;
+    private static readonly EDGE_PARENTS_LIMIT;
     private detachers;
     constructor(tracer?: Tracer);
     /**
@@ -35,5 +37,14 @@ export declare class DiveOtelProvider {
     private onCreate;
     private findParentSpan;
     private closeSpan;
+    /**
+     * Cross-surface attributes every span gets, on every hook path:
+     * the edge's trace root id (Jaeger link → mnemographica's Live Trace,
+     * Wanted #1), the edgeId→traceId publication for the strategy push
+     * channel (Wanted #2), and code.filepath/line/column parsed from the
+     * callsite name (Wanted #4).
+     */
+    private decorateSpan;
+    private rootEdgeIdOf;
 }
 //# sourceMappingURL=dive-otel.provider.d.ts.map
