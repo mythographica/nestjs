@@ -30,6 +30,7 @@ failure.
 | `src/hooks/attach-hooks.ts` | wires a TypesCollection to dive's lifecycle tracing |
 | `src/providers/mnemonica-otel.provider.ts` | OTel tracer provider for nested construction spans |
 | `src/providers/dive-otel.provider.ts` | OTel provider over dive's edge hooks — spans every wrapped call, parented on dive's trace. Spans carry `code.filepath/line/column` (callsite parsed from the edge name) and `dive.root_edge_id`; publishes edgeId→traceId on bounded `globalThis.__mnemonicaDiveTraceIds` for the strategy push channel |
+| `src/providers/async-flow.provider.ts` | ALS backbone (`AsyncFlowProvider`, option `asyncFlow`): FlowFrame linked list — enter pushes, leave restores; unwrapped async hops inherit the parental frame via ALS propagation; root pinSet holds context instances for the scope's lifetime. Design: `reports/async-flow-tracking-design.md` |
 | `src/decorators/mnemonica-body.decorator.ts` | `MnemonicaBody` — `@Body()` + validation pipe in one |
 | `src/tokens.ts` | DI tokens, `InjectMnemonicaCollection` |
 | `src/utils/is-mnemonica-instance.ts` | realm-safe type guard via `getProps()` |
@@ -45,7 +46,9 @@ failure.
 2. **Pre-root correlation is by object identity.** The pre-root store is a
    `WeakMap` keyed on the exact request payload objects (body, query,
    params, headers). Re-parsed copies, primitives, and cross-request
-   objects must not resolve. No ALS anywhere.
+   objects must not resolve. No ALS in the pre-root path — the
+   AsyncFlowProvider's ALS is a separate concern (dive-edge attribution)
+   and must never participate in pre-root correlation.
 3. **Retention is the request's lifetime.** There is no store-draining or
    release step by design; the ephemeron semantics are the feature. Do not
    add manual cleanup APIs.
@@ -56,7 +59,7 @@ failure.
 
 ```bash
 npm run build   # tsc → build/ (ESM) + build-cjs/ (CJS, tsconfig.cjs.json)
-npm test        # vitest run (52 tests, incl. the CJS smoke)
+npm test        # vitest run (64 tests, incl. the CJS smoke)
 ```
 
 Both must be green before a change is done. `prepublishOnly` runs build +

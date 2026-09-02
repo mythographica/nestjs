@@ -39,6 +39,7 @@ import {
 import { MNEMONICA_COLLECTION, MNEMONICA_THUNDERSTRUCK_OPTIONS, getFeatureToken } from './tokens.js';
 import { MnemonicaOtelProvider } from './providers/mnemonica-otel.provider.js';
 import { DiveOtelProvider } from './providers/dive-otel.provider.js';
+import { AsyncFlowProvider } from './providers/async-flow.provider.js';
 
 export interface MnemonicaModuleOptions {
 	/** Existing TypesCollection (default = mnemonica.defaultTypes) */
@@ -70,14 +71,25 @@ export interface MnemonicaModuleOptions {
 	 * { storeRequest: true }.
 	 */
 	thunderstruck?: boolean | ThunderstruckOptions;
+	/**
+	 * Async-flow tracking (reports/async-flow-tracking-design.md): an ALS
+	 * backbone that attributes UNWRAPPED async hops (timers, promise
+	 * continuations, async-generator suspensions) to the parental dive
+	 * edge and pins context instances for exactly the request's lifetime,
+	 * so edge.instance never derefs to undefined mid-request. The HTTP
+	 * root frame is created by MnemonicaTraceMiddleware when the provider
+	 * is present; non-HTTP roots use AsyncFlowProvider.runInScope.
+	 */
+	asyncFlow?: boolean;
 }
 
 /**
- * The dive trace's default ring-buffer size — re-exported so the tuning
- * knob is discoverable where the module is configured. Matches dive's own
- * internal default; the buffer size IS dive's memory bound.
+ * The dive trace's default ring size — re-exported so the tuning knob is
+ * discoverable where the module is configured. Matches dive's own internal
+ * default: UNBOUNDED since dive's 2026-09-02 flip (retention is GC-driven
+ * in weak mode; pass an explicit traceLimit to bound the ring).
  */
-export const DEFAULT_TRACE_LIMIT = 1024;
+export const DEFAULT_TRACE_LIMIT = Number.MAX_SAFE_INTEGER;
 
 @Module({})
 export class MnemonicaModule {
@@ -120,6 +132,15 @@ export class MnemonicaModule {
 			});
 		}
 
+		if (options.asyncFlow) {
+			const asyncFlow = new AsyncFlowProvider();
+			asyncFlow.attach();
+			providers.push({
+				provide : AsyncFlowProvider,
+				useValue : asyncFlow,
+			});
+		}
+
 		if (options.tracer) {
 			const otel = new MnemonicaOtelProvider(options.tracer);
 			otel.attachHooks(collection);
@@ -142,7 +163,9 @@ export class MnemonicaModule {
 		return {
 			module  : MnemonicaModule,
 			providers,
-			exports : [MNEMONICA_COLLECTION],
+			exports : options.asyncFlow
+				? [MNEMONICA_COLLECTION, AsyncFlowProvider]
+				: [MNEMONICA_COLLECTION],
 			global  : true,
 		};
 	}

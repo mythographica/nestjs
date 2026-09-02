@@ -56,13 +56,24 @@ export interface MnemonicaModuleOptions {
      * { storeRequest: true }.
      */
     thunderstruck?: boolean | ThunderstruckOptions;
+    /**
+     * Async-flow tracking (reports/async-flow-tracking-design.md): an ALS
+     * backbone that attributes UNWRAPPED async hops (timers, promise
+     * continuations, async-generator suspensions) to the parental dive
+     * edge and pins context instances for exactly the request's lifetime,
+     * so edge.instance never derefs to undefined mid-request. The HTTP
+     * root frame is created by MnemonicaTraceMiddleware when the provider
+     * is present; non-HTTP roots use AsyncFlowProvider.runInScope.
+     */
+    asyncFlow?: boolean;
 }
 /**
- * The dive trace's default ring-buffer size — re-exported so the tuning
- * knob is discoverable where the module is configured. Matches dive's own
- * internal default; the buffer size IS dive's memory bound.
+ * The dive trace's default ring size — re-exported so the tuning knob is
+ * discoverable where the module is configured. Matches dive's own internal
+ * default: UNBOUNDED since dive's 2026-09-02 flip (retention is GC-driven
+ * in weak mode; pass an explicit traceLimit to bound the ring).
  */
-export declare const DEFAULT_TRACE_LIMIT = 1024;
+export declare const DEFAULT_TRACE_LIMIT: number;
 export declare class MnemonicaModule {
     static forRoot(options?: MnemonicaModuleOptions): DynamicModule;
     static forFeature(name: string, config?: ConstructorOptions): DynamicModule;

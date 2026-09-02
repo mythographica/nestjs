@@ -139,8 +139,9 @@ Registers the global/default `TypesCollection`.
 | `telemetry`     | `boolean`                         | `false`        | Wire console telemetry hooks |
 | `tracer`        | `Tracer`                          | `undefined`    | OTel tracer — spans per construction, nested along the prototype chain |
 | `traceDiveCalls` | `boolean`                        | `false`        | Requires `tracer` — span EVERY dive-wrapped call, parented on dive's trace; async spans close at settle |
-| `traceLimit`    | `number`                          | `1024`         | Dive ring-buffer size; applied only when provided, never overrides a direct `setTraceLimit()` |
+| `traceLimit`    | `number`                          | unbounded      | Dive ring-buffer size; applied only when provided, never overrides a direct `setTraceLimit()`. Unbounded since dive's 2026-09-02 flip (`Number.MAX_SAFE_INTEGER`); pass `1024` for the pre-flip bound |
 | `thunderstruck` | `boolean \| ThunderstruckOptions` | `false`        | Dive hooks + global `MnemonicaThunderstruckInterceptor`; `{ storeRequest: true }` also links the raw request into the record |
+| `asyncFlow`     | `boolean`                         | `false`        | ALS backbone (`AsyncFlowProvider`): unwrapped async hops (timers, promise continuations, async generators) attribute to the parental dive edge; context instances stay pinned for the request's lifetime so `edge.instance` never derefs to `undefined` mid-request. Root frame comes from `mtm` (HTTP) or `runInScope(fn)`; read the active frame via `currentFrame()` — in an `uncaughtException` handler that IS the failing fiber's context |
 
 The default trace limit is exported as `DEFAULT_TRACE_LIMIT` so the knob
 is discoverable where the module is configured:

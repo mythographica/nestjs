@@ -74,7 +74,9 @@ describe('MnemonicaModule', () => {
 
 	it('forRoot({ traceLimit }) bounds the dive trace; the default is exported', async () => {
 		clear();
-		expect(DEFAULT_TRACE_LIMIT).toBe(1024);
+		// Re-pinned 2026-09-02: dive's default went unbounded (GC-driven
+		// retention via weak refs); 1024 was the pre-flip bound.
+		expect(DEFAULT_TRACE_LIMIT).toBe(Number.MAX_SAFE_INTEGER);
 
 		await Test.createTestingModule({
 			imports : [MnemonicaModule.forRoot({ traceLimit: 3 })],
