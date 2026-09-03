@@ -393,6 +393,37 @@ MnemonicaModule.forRoot({ tracer, traceDiveCalls: true });
 
 Note: dive's `clear()` wipes hook subscribers — re-`attach()` after it.
 
+### `MnemonicaExceptionFilter` — the Unblinder
+
+Teaches Nest's error boundary to speak trace instead of serving the blind
+default `{"statusCode":500,"message":"Internal server error"}`. Register
+per-route or globally:
+
+```typescript
+import { MnemonicaExceptionFilter } from '@mnemonica/nestjs';
+
+@UseFilters(MnemonicaExceptionFilter)          // per-route
+// or, global:
+{ provide: APP_FILTER, useClass: MnemonicaExceptionFilter }
+```
+
+On a genuine failure the 500 body IS the report: the dive branch
+(`create:UserResponse → …`), the errored type, the parent instance the
+construction hung on, and the attempted constructor args — recovered from
+core's `getProps()` off the caught error, which IS the errored mnemonica
+instance. An OTel error span (`nest.caught-exception`) carries the same
+data, so a Nest-caught business error finally exists in the trace backend.
+
+Discipline: expected `HttpException`s (validation 400s etc.) keep Nest's
+own answer; telemetry is unconditional but the body is conditional — a
+handler that already wrote a partial response keeps its misleading status
+line, while stdout (`[unblind] …` log line) and the span still get
+everything; non-Error throws are reported truthfully, never dressed up as
+Errors.
+
+Nest's filter tiering is nearest-scope-first, first match wins, no
+chaining: a route-scoped filter shadows a global one.
+
 ### `InjectMnemonicaCollection(name?)`
 
 Inject a `TypesCollection` by feature name. Omit or use `'default'` for

@@ -10,6 +10,7 @@
  *   - MnemonicaBody decorator
  *   - InjectMnemonicaCollection decorator
  *   - isMnemonicaInstance() type guard
+ *   - MnemonicaExceptionFilter — the Unblinder: Nest's error boundary speaks trace
  *   - formatFlow() / errorContext() — read-side helpers over dive's trace
  */
 
@@ -30,4 +31,5 @@ export { MnemonicaOtelProvider } from './providers/mnemonica-otel.provider.js';
 export { DiveOtelProvider } from './providers/dive-otel.provider.js';
 export { AsyncFlowProvider, type FlowFrame, type CrashContext } from './providers/async-flow.provider.js';
 export { MnemonicaTraceMiddleware } from './middleware/mnemonica-trace.middleware.js';
+export { MnemonicaExceptionFilter } from './filters/mnemonica-exception.filter.js';
 export { getPreRoot, type PreRootData, type RawPreRootPayload } from './thunderstruck/pre-root.js';
