@@ -30,12 +30,13 @@ failure.
 | `src/hooks/attach-hooks.ts` | wires a TypesCollection to dive's lifecycle tracing |
 | `src/providers/mnemonica-otel.provider.ts` | OTel tracer provider for nested construction spans |
 | `src/providers/dive-otel.provider.ts` | OTel provider over dive's edge hooks — spans every wrapped call, parented on dive's trace. Spans carry `code.filepath/line/column` (callsite parsed from the edge name) and `dive.root_edge_id`; publishes edgeId→traceId on bounded `globalThis.__mnemonicaDiveTraceIds` for the strategy push channel |
-| `src/providers/async-flow.provider.ts` | ALS backbone (`AsyncFlowProvider`, option `asyncFlow`): FlowFrame linked list — enter pushes, leave restores; unwrapped async hops inherit the parental frame via ALS propagation; root pinSet holds context instances for the scope's lifetime. Design: `reports/async-flow-tracking-design.md` |
+| `src/providers/async-flow.provider.ts` | ALS backbone (`AsyncFlowProvider`, option `asyncFlow`): FlowFrame linked list — enter pushes, leave restores; unwrapped async hops inherit the parental frame via ALS propagation; root pinSet holds context instances for the scope's lifetime |
 | `src/filters/mnemonica-exception.filter.ts` | `MnemonicaExceptionFilter` — the Unblinder: Nest's error boundary answers 500 with the dive branch + errored construction + attempted args, and records an OTel error span. Telemetry unconditional, body conditional (headers-sent safe), HttpExceptions pass through |
 | `src/decorators/mnemonica-body.decorator.ts` | `MnemonicaBody` — `@Body()` + validation pipe in one |
 | `src/tokens.ts` | DI tokens, `InjectMnemonicaCollection` |
 | `src/utils/is-mnemonica-instance.ts` | realm-safe type guard via `getProps()` |
 | `src/utils/dive-flow.ts` | `formatFlow` / `errorContext` — read-side helpers over dive's trace |
+| `docs/dive-trace-chain.md` | the four-link chain: mnemonica hooks → attachHooks → dive ring → providers → Jaeger, with the mnemographica 3D correspondence |
 
 ## Invariants (do not break these)
 
